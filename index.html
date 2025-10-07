@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Learning Image Classifier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'JetBrains Mono', monospace; 
+            background-color: #0d1117; /* GitHub Dark Dimmed */
+        }
+        .card {
+            background-color: #161b22; /* Darker Card BG */
+            border-radius: 1rem;
+            border: 1px solid #30363d;
+            transition: all 0.3s ease-in-out;
+        }
+        .drop-zone {
+            transition: all 0.2s ease-in-out;
+        }
+        .drop-zone--over {
+            transform: scale(1.01);
+            border-color: #818cf8;
+            box-shadow: 0 0 20px rgba(129, 140, 248, 0.1);
+        }
+        .loader {
+            border: 4px solid #374151;
+            border-top: 4px solid #818cf8;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        .scale-up { animation: scaleUp 0.5s cubic-bezier(0.390, 0.575, 0.565, 1.000) both; }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleUp {
+            from { transform: scale(0.97); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8 text-gray-300">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Left Column -->
+        <div class="space-y-8">
+            <!-- Uploader Card -->
+            <div class="card p-8">
+                <h1 class="text-2xl font-bold text-gray-100">Upload Image</h1>
+                <p class="text-gray-400 mt-1">Select an image file from your device.</p>
+                
+                <div id="dropZone" class="mt-6 relative border-2 border-dashed border-gray-700 rounded-lg p-6 text-center cursor-pointer bg-gray-900/50 hover:bg-gray-900">
+                    <input type="file" id="imageUpload" class="hidden" accept="image/png, image/jpeg, image/gif">
+                    
+                    <div id="uploadPrompt" class="flex flex-col items-center justify-center h-48 sm:h-56 transition-opacity duration-300">
+                        <div class="flex justify-center items-center bg-gray-800 rounded-full w-14 h-14">
+                           <svg class="w-8 h-8 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                        </div>
+                        <p class="mt-4 font-semibold text-gray-300">Drag & drop files or <span class="text-indigo-400">Browse</span></p>
+                        <p class="text-xs text-gray-500 mt-1">Supports: PNG, JPG, GIF</p>
+                    </div>
+
+                    <img id="imagePreview" src="" alt="Image preview" class="hidden absolute inset-0 w-full h-full object-contain rounded-lg p-2">
+                </div>
+                 <div id="errorInUploader" class="hidden mt-4 bg-red-900/50 text-red-400 rounded-lg p-3 text-sm text-center"></div>
+            </div>
+
+            <!-- Classifiable Objects Card -->
+            <div class="card p-8">
+                <h2 class="text-xl font-bold text-gray-100">Classifiable Objects</h2>
+                <p class="text-gray-400 mt-1">The model is trained on the CIFAR-10 dataset and can identify:</p>
+                <ul id="classList" class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-gray-400">
+                    <!-- Class names will be populated by JS -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="card p-8 flex flex-col justify-center">
+            <!-- Initial State -->
+            <div id="initialState" class="text-center fade-in">
+                <svg class="mx-auto h-16 w-16 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                <h2 class="mt-4 text-xl font-semibold text-gray-200">Image Analysis</h2>
+                <p class="mt-1 text-gray-500">Upload an image to see the model's prediction here.</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden justify-center fade-in">
+                <div class="loader"></div>
+            </div>
+
+            <!-- Result State -->
+            <div id="resultState" class="hidden">
+                <img id="resultImage" src="" class="rounded-lg w-full max-h-96 object-contain border border-gray-700 bg-black/20 p-1">
+                <div class="mt-6 text-center">
+                    <p class="text-sm font-medium text-gray-500">PREDICTED CLASS</p>
+                    <p class="text-5xl lg:text-6xl font-bold text-indigo-400 capitalize mt-1" id="predictedClass"></p>
+                    <p class="text-lg text-gray-400 mt-3">Confidence: <span class="font-semibold text-gray-200" id="confidence"></span></p>
+                </div>
+                 <div id="errorInResult" class="hidden mt-6 bg-red-900/50 text-red-400 rounded-lg p-4 text-center"></div>
+                <button id="resetBtn" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg mt-8 w-full hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105">
+                    Analyze Another Image
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CLASS_NAMES = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'];
+
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const errorInUploader = document.getElementById('errorInUploader');
+        
+        const initialState = document.getElementById('initialState');
+        const loadingState = document.getElementById('loadingState');
+        const resultState = document.getElementById('resultState');
+        const resultImage = document.getElementById('resultImage');
+        const predictedClassSpan = document.getElementById('predictedClass');
+        const confidenceSpan = document.getElementById('confidence');
+        const errorInResult = document.getElementById('errorInResult');
+        const resetBtn = document.getElementById('resetBtn');
+        const classListUl = document.getElementById('classList');
+
+        let selectedFile = null;
+
+        // --- Initial Setup ---
+        function populateClassList() {
+            CLASS_NAMES.forEach(name => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center space-x-2';
+                li.innerHTML = `
+                    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span>${name.charAt(0).toUpperCase() + name.slice(1)}</span>
+                `;
+                classListUl.appendChild(li);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', populateClassList);
+
+        // --- Event Listeners ---
+        dropZone.addEventListener('click', () => imageUpload.click());
+        imageUpload.addEventListener('change', () => handleFileSelect(imageUpload.files[0]));
+        resetBtn.addEventListener('click', resetUI);
+
+        // --- Drag and Drop ---
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, preventDefaults, false);
+            document.body.addEventListener(e, preventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('drop-zone--over'), false));
+        ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('drop-zone--over'), false));
+        dropZone.addEventListener('drop', (e) => handleFileSelect(e.dataTransfer.files[0]), false);
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        // --- Core Functions ---
+        function handleFileSelect(file) {
+            errorInUploader.classList.add('hidden');
+            if (!file) return;
+
+            if (file.type.startsWith('image/')) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const imageUrl = e.target.result;
+                    imagePreview.src = imageUrl;
+                    resultImage.src = imageUrl;
+                    imagePreview.classList.remove('hidden');
+                    uploadPrompt.style.opacity = '0';
+                    handlePrediction();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showErrorInUploader("Please select a valid image file (PNG, JPG).");
+                selectedFile = null;
+            }
+        }
+
+        async function handlePrediction() {
+            if (!selectedFile) return;
+
+            // Update UI to loading state
+            initialState.classList.add('hidden');
+            loadingState.style.display = 'flex';
+            resultState.classList.add('hidden');
+            resultState.classList.remove('scale-up');
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            try {
+                const response = await fetch('/predict', { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Server error: ${response.status}`);
+                }
+                const data = await response.json();
+                showResult(data.predicted_class, data.confidence);
+            } catch (error) {
+                showErrorInResult(`Analysis failed: ${error.message}`);
+            } finally {
+                loadingState.style.display = 'none';
+            }
+        }
+        
+        function showResult(className, confidence) {
+            predictedClassSpan.textContent = className;
+            confidenceSpan.textContent = confidence;
+            errorInResult.classList.add('hidden');
+            resultState.classList.remove('hidden');
+            resultState.classList.add('scale-up');
+        }
+
+        function showErrorInUploader(message) {
+            errorInUploader.textContent = message;
+            errorInUploader.classList.remove('hidden');
+        }
+
+        function showErrorInResult(message) {
+            errorInResult.textContent = message;
+            errorInResult.classList.remove('hidden');
+            resultState.classList.remove('hidden');
+            resultState.classList.add('scale-up');
+            predictedClassSpan.textContent = "Error";
+            confidenceSpan.textContent = "N/A";
+        }
+
+        function resetUI() {
+            selectedFile = null;
+            imageUpload.value = '';
+            
+            imagePreview.classList.add('hidden');
+            uploadPrompt.style.opacity = '1';
+            errorInUploader.classList.add('hidden');
+
+            resultState.classList.add('hidden');
+            loadingState.style.display = 'none';
+            initialState.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+
