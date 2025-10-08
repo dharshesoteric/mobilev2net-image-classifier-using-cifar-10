@@ -212,7 +212,7 @@
             
             // === THIS IS THE CRITICAL CHANGE FOR RENDER ===
             // Replace this URL with your actual Render Web Service URL in the final step.
-            const backendUrl = 'YOUR_RENDER_BACKEND_URL_HERE/predict'; 
+            const backendUrl = 'https://cifar-api-backend.onrender.com/predict'; 
             
             try {
                 const response = await fetch(backendUrl, { method: 'POST', body: formData });
